@@ -1,0 +1,9 @@
+[package]
+name = "ca"
+version = "0.1.0"
+authors = ["René Richter <richterrettich@gmail.com>"]
+
+[dependencies]
+clap = "2.31.2"
+openssl = "0.10.6"
+tar = "0.4"
