@@ -1,0 +1,5 @@
+ca
+pkg
+src
+*.tar.xz
+.git

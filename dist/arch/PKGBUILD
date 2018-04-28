@@ -1,0 +1,29 @@
+# Maintainer: René Richter <richterrettich@gmail.com>
+pkgname=ca
+pkgrel=1
+pkgver=0.1.0
+pkgdesc="A simple certificate authority manager"
+arch=(x86_64)
+url="https://github.com/Richterrettich/ca"
+license=('GPL')
+depends=(openssl)
+makedepends=(rust git)
+source=(ca::git+https://github.com/Richterrettich/ca.git)
+noextract=("${source[@]##*/}")
+
+build() {
+  cd "$pkgname"
+  cargo build --release
+}
+
+check() {
+	cd "$pkgname"
+	cargo test
+}
+
+package() {
+	cd "$pkgname"
+  mkdir -p "$pkgdir/usr/bin"
+  cp "target/release/ca" "$pkgdir/usr/bin"
+}
+md5sums=('SKIP')
