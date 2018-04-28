@@ -7,6 +7,7 @@ use std::env;
 use std::error::Error;
 use std::fs::File;
 use std::io::prelude::*;
+use std::path::PathBuf;
 
 fn main() {
     let matches = App::new("CA")
@@ -139,6 +140,7 @@ fn main() {
                                         Arg::with_name("intermediate")
                                                 .short("i")
                                                 .long("intermediate")
+                                                .takes_value(true)
                                     )
                     )
                     .get_matches();
@@ -167,6 +169,7 @@ fn main() {
             import_cmd.value_of("password").unwrap(),
             import_cmd.value_of("import-password"),
         ),
+        ("list", Some(list_cmd)) => list(dir, list_cmd.value_of("intermediate")),
         _ => panic!("can not happen. This is a bug.")
     };
 
@@ -265,7 +268,8 @@ fn load_ca(
                 From::from(format!("could not find intermediate ca {}", intermediate));
             return Err(err);
         }
-        Ok(possible_container.unwrap())
+        let (container, _path) = possible_container.unwrap();
+        Ok(container)
     } else {
         dir.push("keystore.p12");
         ca::CertContainer::load(dir, pwd)
@@ -299,5 +303,26 @@ fn create_ca_directories(dir: std::path::PathBuf) -> Result<(), Box<std::error::
     let mut intermediate_dir = dir.clone();
     intermediate_dir.push("intermediate");
     ca::mkdir_p(&intermediate_dir)?;
+    Ok(())
+}
+
+
+fn list(mut dir: PathBuf, intermediate: Option<&str>) -> ca::Result<()> {
+    if intermediate.is_some() {
+        dir.push("intermediate");
+        dir.push(intermediate.unwrap());
+        if !dir.exists(){
+            return Err(From::from(format!("intermediate CA {} is not present",intermediate.unwrap())));
+        }
+    }
+    dir.push("issued");
+    let entries = std::fs::read_dir(dir)?;
+
+    for possible_entry in entries {
+        let entry = possible_entry?;
+        let path = entry.path();
+        let name = path.file_stem().ok_or("unable to get filename")?;
+        println!("{}",name.to_str().ok_or("unable to print path")?);
+    }
     Ok(())
 }
