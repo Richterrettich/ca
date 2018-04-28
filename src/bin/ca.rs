@@ -2,7 +2,7 @@ extern crate ca;
 extern crate clap;
 extern crate openssl;
 
-use clap::{App, Arg, SubCommand};
+use clap::{App, Arg, SubCommand,AppSettings};
 use std::env;
 use std::error::Error;
 use std::fs::File;
@@ -13,6 +13,7 @@ fn main() {
                     .version("1.0.0") //TODO replace with cargo variable
                     .author("René Richter")
                     .about("A simple CA manager to generate and sign certificates and their private keys.")
+                    .setting(AppSettings::SubcommandRequiredElseHelp)
                     .arg(
                         Arg::with_name("directory")
                                 .short("d")
@@ -29,7 +30,8 @@ fn main() {
                     .subcommand(
                         SubCommand::with_name("issue")
                                     .about("issues a new certificate")
-                                    
+                                    .setting(AppSettings::SubcommandRequiredElseHelp)
+
                                     .subcommand(
                                         SubCommand::with_name("server")
                                          .arg(
@@ -165,7 +167,7 @@ fn main() {
             import_cmd.value_of("password").unwrap(),
             import_cmd.value_of("import-password"),
         ),
-        _ => panic!("invalid subcommand"),
+        _ => panic!("can not happen. This is a bug.")
     };
 
     if result.is_err() {
@@ -202,10 +204,7 @@ fn issue(issue_cmd: &clap::ArgMatches, dir: std::path::PathBuf) -> ca::Result<()
     match issue_cmd.subcommand() {
         ("intermediate", Some(ic)) => issue_intermediate_cmd(ic, dir),
         ("server", Some(sc)) => issue_server_cmd(sc, dir),
-        _ => {
-            println!("{}", issue_cmd.usage());
-            std::process::exit(1)
-        }
+        _ => panic!("can not happen")
     }
 }
 
