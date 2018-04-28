@@ -142,7 +142,7 @@ fn main() {
                     .get_matches();
 
     let dir = if matches.is_present("directory") {
-        matches.value_of("directory").unwrap().parse().unwrap()
+        std::path::PathBuf::from(matches.value_of("directory").unwrap())
     } else {
         match env::home_dir() {
             Some(d) => {
