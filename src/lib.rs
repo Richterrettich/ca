@@ -42,36 +42,19 @@ pub struct CertContainer {
 }
 
 impl CertContainer {
-    pub fn find_intermediate<T>(dir: &Path, name: T, pwd: T) -> Result<Option<Self>>
+    pub fn load_intermediate<T>(dir: &Path, name: T, pwd: T) -> Result<Option<Self>>
     where
         T: AsRef<str> + std::clone::Clone,
     {
         let mut intermediate = PathBuf::from(dir);
         intermediate.push("intermediate");
+        intermediate.push(name.as_ref());
 
         if !intermediate.exists() {
             return Ok(None);
         }
-        for read_result in fs::read_dir(&intermediate)? {
-            let entry = try!(read_result);
-            let raw_file_name = entry.file_name();
-            let file_name = raw_file_name.to_str().ok_or("unable to get file name")?;
-            if file_name == name.as_ref() {
-                let mut keystore_path = entry.path().clone();
-                keystore_path.push("keystore.p12");
-                return Ok(Some(CertContainer::load(keystore_path, pwd)?));
-            }
-        }
-
-        for read_result in fs::read_dir(&intermediate)? {
-            let entry = try!(read_result);
-            let possible_find = Self::find_intermediate(&entry.path(), name.clone(), pwd.clone())?;
-            if possible_find.is_some() {
-                return Ok(possible_find);
-            }
-        }
-
-        Ok(None)
+        intermediate.push("keystore.p12");
+        return Ok(Some(CertContainer::load(intermediate, pwd)?));
     }
 
     pub fn from_pem<T>(

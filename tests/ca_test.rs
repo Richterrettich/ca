@@ -103,68 +103,7 @@ fn export() {
     std::fs::remove_dir_all(&dir).ok();
 }
 
-#[test]
-fn find_intermediate() {
-    let mut dir = std::env::temp_dir();
-    dir.push("ca_test_find_intermediate");
-    std::fs::remove_dir_all(&dir).ok();
-    ca::mkdir_p(&dir).unwrap();
-    let root_container = ca::CertContainer::generate("root", 365 * 10, "changeit").unwrap();
-    let mut keystore = dir.clone();
-    keystore.push("keystore.p12");
-    root_container.save(&keystore).unwrap();
-    let (foo, foo_path) = create_intermediate(&root_container, &dir, "foo");
-    let (bar, bar_path) = create_intermediate(&foo, &foo_path, "bar");
-    let (bazz, _bazz_path) = create_intermediate(&bar, &bar_path, "bazz");
 
-    let (bli, bli_path) = create_intermediate(&root_container, &dir, "bli");
-    let (bla, bla_path) = create_intermediate(&bli, &bli_path, "bla");
-    let (blubb, _blubb_path) = create_intermediate(&bla, &bla_path, "blubb");
-    let (blubber, _blubber_path) = create_intermediate(&bla, &bla_path, "blubber");
-
-    for (expected, name) in vec![
-        (foo, "foo"),
-        (bar, "bar"),
-        (bazz, "bazz"),
-        (bli, "bli"),
-        (bla, "bla"),
-        (blubb, "blubb"),
-        (blubber, "blubber"),
-    ] {
-        let testant = ca::CertContainer::find_intermediate(&dir, name, "changeit")
-            .unwrap()
-            .unwrap();
-        assert!(
-            testant
-                .cert
-                .public_key()
-                .unwrap()
-                .public_eq(&expected.cert.public_key().unwrap())
-        );
-    }
-    std::fs::remove_dir_all(&dir).ok();
-}
-
-fn create_intermediate<T>(
-    parent: &ca::CertContainer,
-    dir: &std::path::PathBuf,
-    name: T,
-) -> (ca::CertContainer, std::path::PathBuf)
-where
-    T: AsRef<str> + Clone,
-{
-    let container = parent
-        .issue_intermediate(name.as_ref(), 365 * 10, "changeit")
-        .unwrap();
-    let mut new_path = dir.clone();
-    new_path.push("intermediate");
-    new_path.push(name.as_ref());
-    let result_path = new_path.clone();
-    ca::mkdir_p(&new_path).unwrap();
-    new_path.push("keystore.p12");
-    container.save(&new_path).unwrap();
-    return (container, result_path);
-}
 
 fn prepare_ca(test_name: &str) -> (ca::CertContainer, std::path::PathBuf) {
     let container = ca::CertContainer::generate("root", 365 * 10, "changeit").unwrap();

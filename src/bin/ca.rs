@@ -46,27 +46,27 @@ fn main() {
                                             .short("i")
                                             .long("intermediate")
                                             .takes_value(true)
-                                    )
-                                    .arg(
-                                        Arg::with_name("duration")
-                                            .help("the duration for the certificate in days (default 10950)")
-                                            .short("d")
-                                            .long("duration")
-                                            .takes_value(true)
-                                    )
-                                    .arg(
-                                        Arg::with_name("passwd")
-                                            .help("the password for the new keystore (default: changeit)")
-                                            .short("p")
-                                            .long("password")
-                                            .takes_value(true)
-                                    )
-                                    .arg(
-                                        Arg::with_name("ca-pwd")
-                                            .help("the password for the signing CA (default: changeit)")
-                                            .long("ca-pwd")
-                                            .takes_value(true)
-                                    )
+                                        )
+                                        .arg(
+                                            Arg::with_name("duration")
+                                                .help("the duration for the certificate in days (default 10950)")
+                                                .short("d")
+                                                .long("duration")
+                                                .takes_value(true)
+                                        )
+                                        .arg(
+                                            Arg::with_name("passwd")
+                                                .help("the password for the new keystore (default: changeit)")
+                                                .short("p")
+                                                .long("password")
+                                                .takes_value(true)
+                                        )
+                                        .arg(
+                                            Arg::with_name("ca-pwd")
+                                                .help("the password for the signing CA (default: changeit)")
+                                                .long("ca-pwd")
+                                                .takes_value(true)
+                                        )
                                     )
                                     .subcommand(
                                          SubCommand::with_name("intermediate")
@@ -76,32 +76,25 @@ fn main() {
                                                         .help("name of the intermediate CA")
                                                 )
                                                 .arg(
-                                        Arg::with_name("intermediate")
-                                            .help("use an intermediate certificate to sign")
-                                            .short("i")
-                                            .long("intermediate")
-                                            .takes_value(true)
-                                    )
-                                    .arg(
-                                        Arg::with_name("duration")
-                                            .help("the duration for the certificate in days (default 10950)")
-                                            .short("d")
-                                            .long("duration")
-                                            .takes_value(true)
-                                    )
-                                    .arg(
-                                        Arg::with_name("passwd")
-                                            .help("the password for the new keystore (default: changeit)")
-                                            .short("p")
-                                            .long("password")
-                                            .takes_value(true)
-                                    )
-                                    .arg(
-                                        Arg::with_name("ca-pwd")
-                                            .help("the password for the signing CA (default: changeit)")
-                                            .long("ca-pwd")
-                                            .takes_value(true)
-                                    )
+                                                    Arg::with_name("duration")
+                                                        .help("the duration for the certificate in days (default 10950)")
+                                                        .short("d")
+                                                        .long("duration")
+                                                        .takes_value(true)
+                                                )
+                                                .arg(
+                                                    Arg::with_name("passwd")
+                                                        .help("the password for the new keystore (default: changeit)")
+                                                        .short("p")
+                                                        .long("password")
+                                                        .takes_value(true)
+                                                )
+                                                .arg(
+                                                    Arg::with_name("ca-pwd")
+                                                        .help("the password for the signing CA (default: changeit)")
+                                                        .long("ca-pwd")
+                                                        .takes_value(true)
+                                                )
                                     )
                     )
                     .subcommand(
@@ -262,13 +255,13 @@ fn load_ca(
     possible_intermediate: Option<&str>,
 ) -> ca::Result<ca::CertContainer> {
     if let Some(intermediate) = possible_intermediate {
-        let possible_container = ca::CertContainer::find_intermediate(&dir, intermediate, pwd)?;
+        let possible_container = ca::CertContainer::load_intermediate(&dir, intermediate, pwd)?;
         if possible_container.is_none() {
             let err: Box<Error> =
                 From::from(format!("could not find intermediate ca {}", intermediate));
             return Err(err);
         }
-        let (container, _path) = possible_container.unwrap();
+        let container = possible_container.unwrap();
         Ok(container)
     } else {
         dir.push("keystore.p12");
