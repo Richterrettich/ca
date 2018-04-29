@@ -83,6 +83,88 @@ fn test_issue_intermediate() {
     );
 }
 
+
+
+#[test]
+fn test_export() {
+    let dir = TempDir::new("export");
+    let output = run(dir.0.clone(), &["init"]);
+    assert!(output.status.success());
+    assert_eq!(0, output.stdout.len());
+    assert_eq!(0, output.stderr.len());
+
+    let output = run(dir.0.clone(), &["issue", "intermediate", "foo"]);
+    assert!(output.status.success());
+
+    let mut intermediate_keystore = dir.0.clone();
+    intermediate_keystore.push("intermediate");
+    intermediate_keystore.push("foo");
+    let mut intermediate_issued = intermediate_keystore.clone();
+    intermediate_issued.push("issued");
+    intermediate_keystore.push("keystore.p12");
+
+    check_keystore(&intermediate_keystore, "changeit", "foo");
+    assert!(intermediate_issued.exists());
+
+    let output = run(
+        dir.0.clone(),
+        &[
+            "issue",
+            "server",
+            "--no-export",
+            "-i",
+            "foo",
+            "www.example.com",
+        ],
+    );
+    assert!(output.status.success());
+
+    let entries = std::fs::read_dir(intermediate_issued).unwrap();
+    let dir_vec: Vec<io::Result<DirEntry>> = entries.collect();
+    assert_eq!(1, dir_vec.len());
+
+    let output = run(dir.0.clone(), &["list", "--intermediate", "foo"]);
+    assert!(output.status.success());
+
+    assert_eq!(
+        "www.example.com\n",
+        std::str::from_utf8(&output.stdout[..]).unwrap()
+    );
+
+    let output = run(
+        dir.0.clone(),
+        &["issue", "server", "--no-export", "test.example.com"],
+    );
+    assert!(output.status.success());
+
+    let output = run(dir.0.clone(), &["list"]);
+    assert!(output.status.success());
+
+    assert_eq!(
+        "test.example.com\n",
+        std::str::from_utf8(&output.stdout[..]).unwrap()
+    );
+
+
+    let output = run(
+        dir.0.clone(),
+        &["export","-o",dir.0.clone().to_str().unwrap(), "test.example.com"],
+    );
+
+    let mut export_tar = dir.0.clone();
+    export_tar.push("test.example.com.tar");
+
+    assert!(export_tar.exists());
+
+let output = run(
+        dir.0.clone(),
+        &["export","-o",dir.0.clone().to_str().unwrap(), "-i","foo","www.example.com"],
+    );
+
+
+}
+
+
 fn cleanup(_d: TempDir) {}
 
 fn run(dir: PathBuf, args: &[&str]) -> Output {

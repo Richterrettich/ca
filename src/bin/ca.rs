@@ -142,6 +142,26 @@ fn main() {
                                                 .takes_value(true)
                                     )
                     )
+                    .subcommand(
+                        SubCommand::with_name("export")
+                                    .arg(
+                                        Arg::with_name("intermediate")
+                                                .short("i")
+                                                .long("intermediate")
+                                                .takes_value(true)
+                                    )
+                                    .arg(
+                                        Arg::with_name("out-dir")
+                                                .short("o")
+                                                .long("out-dir")
+                                                .takes_value(true)
+                                    )
+                                    .arg(
+                                        Arg::with_name("NAME")
+                                                .takes_value(true)
+                                                .required(true)
+                                    )
+                    )
                     .get_matches();
 
     let dir = if matches.is_present("directory") {
@@ -169,6 +189,13 @@ fn main() {
             import_cmd.value_of("import-password"),
         ),
         ("list", Some(list_cmd)) => list(dir, list_cmd.value_of("intermediate")),
+        ("export", Some(export_cmd)) => export(
+            dir,
+            export_cmd.value_of("NAME").unwrap(),
+            export_cmd.value_of("passwd").unwrap_or("changeit"),
+            PathBuf::from(export_cmd.value_of("out-dir").unwrap_or(".")),
+            export_cmd.value_of("intermediate"),
+        ),
         _ => panic!("can not happen. This is a bug."),
     };
 
@@ -230,7 +257,7 @@ fn issue_intermediate_cmd(cmd: &clap::ArgMatches, mut dir: std::path::PathBuf) -
     Ok(())
 }
 
-fn issue_server_cmd(cmd: &clap::ArgMatches, mut dir: std::path::PathBuf) -> ca::Result<()> {
+fn issue_server_cmd(cmd: &clap::ArgMatches, dir: std::path::PathBuf) -> ca::Result<()> {
     let possible_intermediate = cmd.value_of("intermediate");
     let ca_pwd = cmd.value_of("ca-pwd").unwrap_or("changeit");
     let pwd = cmd.value_of("pwd").unwrap_or("changeit");
@@ -337,5 +364,48 @@ fn list(mut dir: PathBuf, intermediate: Option<&str>) -> ca::Result<()> {
         let name = path.file_stem().ok_or("unable to get filename")?;
         println!("{}", name.to_str().ok_or("unable to print path")?);
     }
+    Ok(())
+}
+
+fn export(
+    mut dir: PathBuf,
+    name: &str,
+    pwd: &str,
+    mut out_dir: PathBuf,
+    possible_intermediate: Option<&str>,
+) -> ca::Result<()> {
+    let mut path = if let Some(intermediate) = possible_intermediate {
+        dir.push("intermediate");
+        dir.push(intermediate);
+        if !dir.exists() {
+            return Err(From::from(format!(
+                "unable to find intermediate CA {}",
+                intermediate
+            )));
+        }
+        dir
+    } else {
+        dir
+    };
+    path.push("issued");
+    path.push(format!("{}.p12", name));
+    if !path.exists() {
+        return Err(From::from(format!(
+            "unable to find issued certificate {}",
+            name
+        )));
+    }
+
+    let mut der = Vec::new();
+    let mut keystore = File::open(path)?;
+
+    keystore.read_to_end(&mut der)?;
+    let p12 = openssl::pkcs12::Pkcs12::from_der(&der[..])?;
+    let container = ca::CertContainer::from_p12(p12, pwd)?;
+
+    out_dir.push(format!("{}.tar", name));
+    let outfile = File::create(out_dir)?;
+
+    container.export(outfile)?;
     Ok(())
 }
