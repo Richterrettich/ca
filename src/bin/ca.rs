@@ -9,164 +9,151 @@ use std::fs::File;
 use std::io::prelude::*;
 use std::path::PathBuf;
 
-
 const VERSION: &'static str = env!("CARGO_PKG_VERSION");
 fn main() {
     let matches = App::new("ca")
-                    .version(VERSION)
-                    .author("René Richter")
-                    .about("A simple CA manager to generate and sign certificates.")
-                    .setting(AppSettings::SubcommandRequiredElseHelp)
-                    .arg(
-                        Arg::with_name("directory")
+        .version(VERSION)
+        .author("René Richter")
+        .about("A simple CA manager to generate and sign certificates.")
+        .setting(AppSettings::SubcommandRequiredElseHelp)
+        .arg(
+            Arg::with_name("directory")
+                .short("d")
+                .long("directory")
+                .value_name("DIR")
+                .help("Sets a custom directory. Defaults to ~/.local/share/ca")
+                .takes_value(true),
+        )
+        .subcommand(SubCommand::with_name("init").about("initialize the CA"))
+        .subcommand(
+            SubCommand::with_name("issue")
+                .about("issues a new certificate")
+                .setting(AppSettings::SubcommandRequiredElseHelp)
+                .subcommand(
+                    SubCommand::with_name("server")
+                        .arg(
+                            Arg::with_name("SANS")
+                                .help("subject alternative names for the certificate")
+                                .multiple(true),
+                        )
+                        .arg(
+                            Arg::with_name("no-export")
+                                .help("do not export certificate")
+                                .short("n")
+                                .long("no-export"),
+                        )
+                        .arg(
+                            Arg::with_name("intermediate")
+                                .help("use an intermediate certificate to sign")
+                                .short("i")
+                                .long("intermediate")
+                                .takes_value(true),
+                        )
+                        .arg(
+                            Arg::with_name("duration")
+                                .help("the duration for the certificate in days (default 10950)")
                                 .short("d")
-                                .long("directory")
-                                .value_name("DIR")
-                                .help("Sets a custom directory. Defaults to ~/.local/share/ca")
-                                .takes_value(true)
-                    )
-                    .subcommand(
-                        SubCommand::with_name("init")
-                                    .about("initialize the CA")
-                    )
-
-                    .subcommand(
-                        SubCommand::with_name("issue")
-                                    .about("issues a new certificate")
-                                    .setting(AppSettings::SubcommandRequiredElseHelp)
-
-                                    .subcommand(
-                                        SubCommand::with_name("server")
-                                         .arg(
-                                            Arg::with_name("SANS")
-                                                .help("subject alternative names for the certificate")
-                                                .multiple(true)
-                                        )
-                                        .arg(
-                                            Arg::with_name("no-export")
-                                                .help("do not export certificate")
-                                                .short("n")
-                                                .long("no-export")
-                                        )
-                                        .arg(
-                                        Arg::with_name("intermediate")
-                                            .help("use an intermediate certificate to sign")
-                                            .short("i")
-                                            .long("intermediate")
-                                            .takes_value(true)
-                                        )
-                                        .arg(
-                                            Arg::with_name("duration")
-                                                .help("the duration for the certificate in days (default 10950)")
-                                                .short("d")
-                                                .long("duration")
-                                                .takes_value(true)
-                                        )
-                                        .arg(
-                                            Arg::with_name("passwd")
-                                                .help("the password for the new keystore (default: changeit)")
-                                                .short("p")
-                                                .long("password")
-                                                .takes_value(true)
-                                        )
-                                        .arg(
-                                            Arg::with_name("ca-pwd")
-                                                .help("the password for the signing CA (default: changeit)")
-                                                .long("ca-pwd")
-                                                .takes_value(true)
-                                        )
-                                    )
-                                    .subcommand(
-                                         SubCommand::with_name("intermediate")
-                                                .about("create an intermediate CA")
-                                                .arg(
-                                                    Arg::with_name("NAME")
-                                                        .help("name of the intermediate CA")
-                                                )
-                                                .arg(
-                                                    Arg::with_name("duration")
-                                                        .help("the duration for the certificate in days (default 10950)")
-                                                        .short("d")
-                                                        .long("duration")
-                                                        .takes_value(true)
-                                                )
-                                                .arg(
-                                                    Arg::with_name("passwd")
-                                                        .help("the password for the new keystore (default: changeit)")
-                                                        .short("p")
-                                                        .long("password")
-                                                        .takes_value(true)
-                                                )
-                                                .arg(
-                                                    Arg::with_name("ca-pwd")
-                                                        .help("the password for the signing CA (default: changeit)")
-                                                        .long("ca-pwd")
-                                                        .takes_value(true)
-                                                )
-                                    )
-                    )
-                    .subcommand(
-                        SubCommand::with_name("import")
-                                    .about("import a CA")
-                                    .arg(
-                                        Arg::with_name("password")
-                                            .short("p")
-                                            .long("password")
-                                            .help("password of the key file")
-                                            .takes_value(true)
-                                            .default_value("changeit")
-                                    )
-                                    .arg(
-                                        Arg::with_name("import-password")
-                                            .long("import-password")
-                                            .help("existing password of the key file")
-                                            .takes_value(true)
-                                    )
-                                    .arg(
-                                        Arg::with_name("key")
-                                            .help("path to the CA private key pem file")
-                                            .takes_value(true)
-                                            .required(true)
-                                    )
-                                    .arg(
-                                        Arg::with_name("cert")
-                                            .help("path to the CA certificate pem file")
-                                            .takes_value(true)
-                                            .required(true)
-                                    )
-                    )
-                    .subcommand(
-                        SubCommand::with_name("list")
-                                    .about("list issued certificates")
-                                    .arg(
-                                        Arg::with_name("intermediate")
-                                                .short("i")
-                                                .long("intermediate")
-                                                .takes_value(true)
-                                    )
-                    )
-                    .subcommand(
-                        SubCommand::with_name("export")
-                                    .about("export an issued certificate")
-                                    .arg(
-                                        Arg::with_name("intermediate")
-                                                .short("i")
-                                                .long("intermediate")
-                                                .takes_value(true)
-                                    )
-                                    .arg(
-                                        Arg::with_name("out-dir")
-                                                .short("o")
-                                                .long("out-dir")
-                                                .takes_value(true)
-                                    )
-                                    .arg(
-                                        Arg::with_name("NAME")
-                                                .takes_value(true)
-                                                .required(true)
-                                    )
-                    )
-                    .get_matches();
+                                .long("duration")
+                                .takes_value(true),
+                        )
+                        .arg(
+                            Arg::with_name("passwd")
+                                .help("the password for the new keystore (default: changeit)")
+                                .short("p")
+                                .long("password")
+                                .takes_value(true),
+                        )
+                        .arg(
+                            Arg::with_name("ca-pwd")
+                                .help("the password for the signing CA (default: changeit)")
+                                .long("ca-pwd")
+                                .takes_value(true),
+                        ),
+                )
+                .subcommand(
+                    SubCommand::with_name("intermediate")
+                        .about("create an intermediate CA")
+                        .arg(Arg::with_name("NAME").help("name of the intermediate CA"))
+                        .arg(
+                            Arg::with_name("duration")
+                                .help("the duration for the certificate in days (default 10950)")
+                                .short("d")
+                                .long("duration")
+                                .takes_value(true),
+                        )
+                        .arg(
+                            Arg::with_name("passwd")
+                                .help("the password for the new keystore (default: changeit)")
+                                .short("p")
+                                .long("password")
+                                .takes_value(true),
+                        )
+                        .arg(
+                            Arg::with_name("ca-pwd")
+                                .help("the password for the signing CA (default: changeit)")
+                                .long("ca-pwd")
+                                .takes_value(true),
+                        ),
+                ),
+        )
+        .subcommand(
+            SubCommand::with_name("import")
+                .about("import a CA")
+                .arg(
+                    Arg::with_name("password")
+                        .short("p")
+                        .long("password")
+                        .help("password of the key file")
+                        .takes_value(true)
+                        .default_value("changeit"),
+                )
+                .arg(
+                    Arg::with_name("import-password")
+                        .long("import-password")
+                        .help("existing password of the key file")
+                        .takes_value(true),
+                )
+                .arg(
+                    Arg::with_name("key")
+                        .help("path to the CA private key pem file")
+                        .takes_value(true)
+                        .required(true),
+                )
+                .arg(
+                    Arg::with_name("cert")
+                        .help("path to the CA certificate pem file")
+                        .takes_value(true)
+                        .required(true),
+                ),
+        )
+        .subcommand(
+            SubCommand::with_name("list")
+                .about("list issued certificates")
+                .arg(
+                    Arg::with_name("intermediate")
+                        .short("i")
+                        .long("intermediate")
+                        .takes_value(true),
+                ),
+        )
+        .subcommand(
+            SubCommand::with_name("export")
+                .about("export an issued certificate")
+                .arg(
+                    Arg::with_name("intermediate")
+                        .short("i")
+                        .long("intermediate")
+                        .takes_value(true),
+                )
+                .arg(
+                    Arg::with_name("out-dir")
+                        .short("o")
+                        .long("out-dir")
+                        .takes_value(true),
+                )
+                .arg(Arg::with_name("NAME").takes_value(true).required(true)),
+        )
+        .get_matches();
 
     let dir = if matches.is_present("directory") {
         std::path::PathBuf::from(matches.value_of("directory").unwrap())
@@ -359,15 +346,26 @@ fn list(mut dir: PathBuf, intermediate: Option<&str>) -> ca::Result<()> {
                 intermediate.unwrap()
             )));
         }
+    } else {
+        println!("intermediate certificates");
+        let mut intermediate_dir = dir.clone();
+        intermediate_dir.push("intermediate");
+        let entries = std::fs::read_dir(intermediate_dir)?;
+        for possible_entry in entries {
+            let entry = possible_entry?;
+            let path = entry.path();
+            let name = path.file_stem().ok_or("unable to get filename")?;
+            println!("  {}", name.to_str().ok_or("unable to print path")?);
+        }
     }
     dir.push("issued");
     let entries = std::fs::read_dir(dir)?;
-
+    println!("server certificates");
     for possible_entry in entries {
         let entry = possible_entry?;
         let path = entry.path();
         let name = path.file_stem().ok_or("unable to get filename")?;
-        println!("{}", name.to_str().ok_or("unable to print path")?);
+        println!("  {}", name.to_str().ok_or("unable to print path")?);
     }
     Ok(())
 }

@@ -64,7 +64,7 @@ fn test_issue_intermediate() {
     assert!(output.status.success());
 
     assert_eq!(
-        "www.example.com\n",
+        "server certificates\n  www.example.com\n",
         std::str::from_utf8(&output.stdout[..]).unwrap()
     );
 
@@ -78,7 +78,7 @@ fn test_issue_intermediate() {
     assert!(output.status.success());
 
     assert_eq!(
-        "test.example.com\n",
+        "intermediate certificates\n  foo\nserver certificates\n  test.example.com\n",
         std::str::from_utf8(&output.stdout[..]).unwrap()
     );
 }
@@ -123,28 +123,11 @@ fn test_export() {
     let dir_vec: Vec<io::Result<DirEntry>> = entries.collect();
     assert_eq!(1, dir_vec.len());
 
-    let output = run(dir.0.clone(), &["list", "--intermediate", "foo"]);
-    assert!(output.status.success());
-
-    assert_eq!(
-        "www.example.com\n",
-        std::str::from_utf8(&output.stdout[..]).unwrap()
-    );
-
     let output = run(
         dir.0.clone(),
         &["issue", "server", "--no-export", "test.example.com"],
     );
     assert!(output.status.success());
-
-    let output = run(dir.0.clone(), &["list"]);
-    assert!(output.status.success());
-
-    assert_eq!(
-        "test.example.com\n",
-        std::str::from_utf8(&output.stdout[..]).unwrap()
-    );
-
 
     let output = run(
         dir.0.clone(),
