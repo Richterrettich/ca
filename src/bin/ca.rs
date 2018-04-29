@@ -12,7 +12,7 @@ use std::path::PathBuf;
 
 const VERSION: &'static str = env!("CARGO_PKG_VERSION");
 fn main() {
-    let matches = App::new("CA")
+    let matches = App::new("ca")
                     .version(VERSION)
                     .author("René Richter")
                     .about("A simple CA manager to generate and sign certificates.")
@@ -137,6 +137,7 @@ fn main() {
                     )
                     .subcommand(
                         SubCommand::with_name("list")
+                                    .about("list issued certificates")
                                     .arg(
                                         Arg::with_name("intermediate")
                                                 .short("i")
@@ -146,6 +147,7 @@ fn main() {
                     )
                     .subcommand(
                         SubCommand::with_name("export")
+                                    .about("export an issued certificate")
                                     .arg(
                                         Arg::with_name("intermediate")
                                                 .short("i")
