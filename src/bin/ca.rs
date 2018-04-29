@@ -9,9 +9,11 @@ use std::fs::File;
 use std::io::prelude::*;
 use std::path::PathBuf;
 
+
+const VERSION: &'static str = env!("CARGO_PKG_VERSION");
 fn main() {
     let matches = App::new("CA")
-                    .version("1.0.0") //TODO replace with cargo variable
+                    .version(VERSION)
                     .author("René Richter")
                     .about("A simple CA manager to generate and sign certificates.")
                     .setting(AppSettings::SubcommandRequiredElseHelp)
