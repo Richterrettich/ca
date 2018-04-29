@@ -13,7 +13,7 @@ fn main() {
     let matches = App::new("CA")
                     .version("1.0.0") //TODO replace with cargo variable
                     .author("René Richter")
-                    .about("A simple CA manager to generate and sign certificates and their private keys.")
+                    .about("A simple CA manager to generate and sign certificates.")
                     .setting(AppSettings::SubcommandRequiredElseHelp)
                     .arg(
                         Arg::with_name("directory")
