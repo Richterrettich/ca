@@ -171,6 +171,7 @@ fn main() {
             Some(d) => {
                 let mut home_dir = std::path::PathBuf::from(d.to_string_lossy().to_owned().to_string());
                 home_dir.push(".local");
+                home_dir.push("share");
                 home_dir.push("ca");
                 home_dir
             },
