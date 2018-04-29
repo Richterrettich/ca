@@ -121,7 +121,7 @@ impl CertContainer {
         Self::from_p12(p12, pwd)
     }
 
-    fn from_p12<T>(p12: Pkcs12, pwd: T) -> Result<Self>
+    pub fn from_p12<T>(p12: Pkcs12, pwd: T) -> Result<Self>
     where
         T: AsRef<str> + std::clone::Clone,
     {

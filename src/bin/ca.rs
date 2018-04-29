@@ -2,7 +2,7 @@ extern crate ca;
 extern crate clap;
 extern crate openssl;
 
-use clap::{App, Arg, SubCommand,AppSettings};
+use clap::{App, AppSettings, Arg, SubCommand};
 use std::env;
 use std::error::Error;
 use std::fs::File;
@@ -39,6 +39,12 @@ fn main() {
                                             Arg::with_name("SANS")
                                                 .help("subject alternative names for the certificate")
                                                 .multiple(true)
+                                        )
+                                        .arg(
+                                            Arg::with_name("no-export")
+                                                .help("do not export certificate")
+                                                .short("n")
+                                                .long("no-export")
                                         )
                                         .arg(
                                         Arg::with_name("intermediate")
@@ -163,7 +169,7 @@ fn main() {
             import_cmd.value_of("import-password"),
         ),
         ("list", Some(list_cmd)) => list(dir, list_cmd.value_of("intermediate")),
-        _ => panic!("can not happen. This is a bug.")
+        _ => panic!("can not happen. This is a bug."),
     };
 
     if result.is_err() {
@@ -200,19 +206,18 @@ fn issue(issue_cmd: &clap::ArgMatches, dir: std::path::PathBuf) -> ca::Result<()
     match issue_cmd.subcommand() {
         ("intermediate", Some(ic)) => issue_intermediate_cmd(ic, dir),
         ("server", Some(sc)) => issue_server_cmd(sc, dir),
-        _ => panic!("can not happen")
+        _ => panic!("can not happen"),
     }
 }
 
 fn issue_intermediate_cmd(cmd: &clap::ArgMatches, mut dir: std::path::PathBuf) -> ca::Result<()> {
-    let possible_intermediate = cmd.value_of("intermediate");
     let ca_pwd = cmd.value_of("ca-pwd").unwrap_or("changeit");
     let pwd = cmd.value_of("pwd").unwrap_or("changeit");
     let duration = cmd.value_of("duration")
         .unwrap_or("10950")
         .parse::<u32>()
         .expect("invalid format for duration: expected positive integer");
-    let container = load_ca(dir.clone(), ca_pwd, possible_intermediate)?;
+    let (container, _path) = load_ca(dir.clone(), ca_pwd, None)?;
 
     let name = cmd.value_of("NAME").unwrap();
     dir.push("intermediate");
@@ -233,15 +238,24 @@ fn issue_server_cmd(cmd: &clap::ArgMatches, mut dir: std::path::PathBuf) -> ca::
         .unwrap_or("10950")
         .parse::<u32>()
         .expect("invalid format for duration: expected positive integer");
-    let container = load_ca(dir.clone(), ca_pwd, possible_intermediate)?;
+
+    let no_export = cmd.is_present("no-export");
+
+    let (container, mut path) = load_ca(dir.clone(), ca_pwd, possible_intermediate)?;
 
     let sans: Vec<&str> = cmd.values_of("SANS").unwrap().collect();
 
     let cert = container.issue(duration, &sans, pwd)?;
-    dir.push("issued");
-    dir.push(format!("{}.p12", cert.name()?));
 
-    cert.save(dir)?;
+    path.push("issued");
+    path.push(format!("{}.p12", cert.name()?));
+
+    cert.save(path)?;
+
+    if no_export {
+        return Ok(());
+    }
+
     let mut export = env::current_dir()?;
     export.push(format!("{}.tar", cert.name()?));
     let export_file = std::fs::File::create(export)?;
@@ -253,7 +267,7 @@ fn load_ca(
     mut dir: std::path::PathBuf,
     pwd: &str,
     possible_intermediate: Option<&str>,
-) -> ca::Result<ca::CertContainer> {
+) -> ca::Result<(ca::CertContainer, PathBuf)> {
     if let Some(intermediate) = possible_intermediate {
         let possible_container = ca::CertContainer::load_intermediate(&dir, intermediate, pwd)?;
         if possible_container.is_none() {
@@ -262,10 +276,14 @@ fn load_ca(
             return Err(err);
         }
         let container = possible_container.unwrap();
-        Ok(container)
+        let mut intermediate_cert_dir = dir.clone();
+        intermediate_cert_dir.push("intermediate");
+        intermediate_cert_dir.push(intermediate);
+        Ok((container, intermediate_cert_dir))
     } else {
-        dir.push("keystore.p12");
-        ca::CertContainer::load(dir, pwd)
+        let mut keystore_path = dir.clone();
+        keystore_path.push("keystore.p12");
+        Ok((ca::CertContainer::load(keystore_path, pwd)?, dir))
     }
 }
 
@@ -299,13 +317,15 @@ fn create_ca_directories(dir: std::path::PathBuf) -> Result<(), Box<std::error::
     Ok(())
 }
 
-
 fn list(mut dir: PathBuf, intermediate: Option<&str>) -> ca::Result<()> {
     if intermediate.is_some() {
         dir.push("intermediate");
         dir.push(intermediate.unwrap());
-        if !dir.exists(){
-            return Err(From::from(format!("intermediate CA {} is not present",intermediate.unwrap())));
+        if !dir.exists() {
+            return Err(From::from(format!(
+                "intermediate CA {} is not present",
+                intermediate.unwrap()
+            )));
         }
     }
     dir.push("issued");
@@ -315,7 +335,7 @@ fn list(mut dir: PathBuf, intermediate: Option<&str>) -> ca::Result<()> {
         let entry = possible_entry?;
         let path = entry.path();
         let name = path.file_stem().ok_or("unable to get filename")?;
-        println!("{}",name.to_str().ok_or("unable to print path")?);
+        println!("{}", name.to_str().ok_or("unable to print path")?);
     }
     Ok(())
 }
