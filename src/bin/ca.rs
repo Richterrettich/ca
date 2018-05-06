@@ -11,6 +11,7 @@ use std::path::PathBuf;
 
 const VERSION: &'static str = env!("CARGO_PKG_VERSION");
 const DEFAULT_PWD: &'static str = "changeit";
+const DEFAULT_DURATION: &'static str = "10950";
 fn main() {
     let matches = App::new("ca")
         .version(VERSION)
@@ -25,7 +26,34 @@ fn main() {
                 .help("Sets a custom directory. Defaults to ~/.local/share/ca")
                 .takes_value(true),
         )
-        .subcommand(SubCommand::with_name("init").about("initialize the CA"))
+        .subcommand(
+            SubCommand::with_name("init")
+                .about("initialize the CA")
+                .arg(
+                    Arg::with_name("passwd")
+                        .help("the password for the new keystore (default: changeit)")
+                        .short("p")
+                        .default_value(DEFAULT_PWD)
+                        .long("password")
+                        .takes_value(true),
+                )
+                .arg(
+                    Arg::with_name("duration")
+                        .help("the duration for the certificate in days (default 10950)")
+                        .short("d")
+                        .long("duration")
+                        .default_value(DEFAULT_DURATION)
+                        .takes_value(true),
+                )
+                .arg(
+                    Arg::with_name("name")
+                        .help("name of the CA")
+                        .short("n")
+                        .long("name")
+                        .default_value("root-ca")
+                        .takes_value(true),
+                ),
+        )
         .subcommand(
             SubCommand::with_name("issue")
                 .about("issues a new certificate")
@@ -55,18 +83,21 @@ fn main() {
                                 .help("the duration for the certificate in days (default 10950)")
                                 .short("d")
                                 .long("duration")
+                                .default_value(DEFAULT_DURATION)
                                 .takes_value(true),
                         )
                         .arg(
                             Arg::with_name("passwd")
                                 .help("the password for the new keystore (default: changeit)")
                                 .short("p")
+                                .default_value(DEFAULT_PWD)
                                 .long("password")
                                 .takes_value(true),
                         )
                         .arg(
                             Arg::with_name("ca-pwd")
                                 .help("the password for the signing CA (default: changeit)")
+                                .default_value(DEFAULT_PWD)
                                 .long("ca-pwd")
                                 .takes_value(true),
                         ),
@@ -78,6 +109,7 @@ fn main() {
                         .arg(
                             Arg::with_name("duration")
                                 .help("the duration for the certificate in days (default 10950)")
+                                .default_value(DEFAULT_DURATION)
                                 .short("d")
                                 .long("duration")
                                 .takes_value(true),
@@ -85,6 +117,7 @@ fn main() {
                         .arg(
                             Arg::with_name("passwd")
                                 .help("the password for the new keystore (default: changeit)")
+                                .default_value(DEFAULT_PWD)
                                 .short("p")
                                 .long("password")
                                 .takes_value(true),
@@ -92,6 +125,7 @@ fn main() {
                         .arg(
                             Arg::with_name("ca-pwd")
                                 .help("the password for the signing CA (default: changeit)")
+                                .default_value(DEFAULT_PWD)
                                 .long("ca-pwd")
                                 .takes_value(true),
                         ),
@@ -101,12 +135,12 @@ fn main() {
             SubCommand::with_name("import")
                 .about("import a CA")
                 .arg(
-                    Arg::with_name("password")
+                    Arg::with_name("passwd")
                         .short("p")
                         .long("password")
                         .help("password of the key file")
                         .takes_value(true)
-                        .default_value("changeit"),
+                        .default_value(DEFAULT_PWD),
                 )
                 .arg(
                     Arg::with_name("import-password")
@@ -150,9 +184,18 @@ fn main() {
                     Arg::with_name("out-dir")
                         .short("o")
                         .long("out-dir")
+                        .default_value(".")
                         .takes_value(true),
                 )
-                .arg(Arg::with_name("NAME").takes_value(true).required(true)),
+                .arg(Arg::with_name("NAME").takes_value(true).required(true))
+                .arg(
+                    Arg::with_name("passwd")
+                        .short("p")
+                        .long("password")
+                        .help("password of the key file")
+                        .takes_value(true)
+                        .default_value(DEFAULT_PWD),
+                ),
         )
         .subcommand(
             SubCommand::with_name("sign")
@@ -170,12 +213,11 @@ fn main() {
                         .long("intermediate")
                         .takes_value(true),
                 )
-
                 .arg(
                     Arg::with_name("duration")
                         .short("d")
                         .long("duration")
-                        .default_value("10950")
+                        .default_value(DEFAULT_DURATION)
                         .takes_value(true),
                 )
                 .arg(
@@ -217,8 +259,8 @@ fn main() {
         ("export", Some(export_cmd)) => export(
             dir,
             export_cmd.value_of("NAME").unwrap(),
-            export_cmd.value_of("passwd").unwrap_or("changeit"),
-            PathBuf::from(export_cmd.value_of("out-dir").unwrap_or(".")),
+            export_cmd.value_of("passwd").unwrap(),
+            PathBuf::from(export_cmd.value_of("out-dir").unwrap()),
             export_cmd.value_of("intermediate"),
         ),
         ("sign", Some(sign_cmd)) => sign(
@@ -248,7 +290,7 @@ fn sign(
     let mut csr_pem = Vec::new();
     csr_file.read_to_end(&mut csr_pem)?;
     let req = openssl::x509::X509Req::from_pem(&csr_pem[..])?;
-    let (ca,_path) = load_ca(dir, pwd, possible_intermediate)?;
+    let (ca, _path) = load_ca(dir, pwd, possible_intermediate)?;
     let duration = raw_duration.parse::<u32>().expect("");
     ca.sign(req, duration)?;
     Ok(())
@@ -287,10 +329,10 @@ fn issue(issue_cmd: &clap::ArgMatches, dir: std::path::PathBuf) -> ca::Result<()
 }
 
 fn issue_intermediate_cmd(cmd: &clap::ArgMatches, mut dir: std::path::PathBuf) -> ca::Result<()> {
-    let ca_pwd = cmd.value_of("ca-pwd").unwrap_or("changeit");
-    let pwd = cmd.value_of("pwd").unwrap_or("changeit");
+    let ca_pwd = cmd.value_of("ca-pwd").unwrap();
+    let pwd = cmd.value_of("passwd").unwrap();
     let duration = cmd.value_of("duration")
-        .unwrap_or("10950")
+        .unwrap()
         .parse::<u32>()
         .expect("invalid format for duration: expected positive integer");
     let (container, _path) = load_ca(dir.clone(), ca_pwd, None)?;
@@ -308,10 +350,10 @@ fn issue_intermediate_cmd(cmd: &clap::ArgMatches, mut dir: std::path::PathBuf) -
 
 fn issue_server_cmd(cmd: &clap::ArgMatches, dir: std::path::PathBuf) -> ca::Result<()> {
     let possible_intermediate = cmd.value_of("intermediate");
-    let ca_pwd = cmd.value_of("ca-pwd").unwrap_or("changeit");
-    let pwd = cmd.value_of("pwd").unwrap_or("changeit");
+    let ca_pwd = cmd.value_of("ca-pwd").unwrap();
+    let pwd = cmd.value_of("passwd").unwrap();
     let duration = cmd.value_of("duration")
-        .unwrap_or("10950")
+        .unwrap()
         .parse::<u32>()
         .expect("invalid format for duration: expected positive integer");
 
@@ -367,13 +409,13 @@ fn init_ca(
     init_cmd: &clap::ArgMatches,
     dir: std::path::PathBuf,
 ) -> Result<(), Box<std::error::Error>> {
-    let pwd = init_cmd.value_of("passwd").unwrap_or("changeit");
+    let pwd = init_cmd.value_of("passwd").unwrap();
     let duration = init_cmd
         .value_of("duration")
-        .unwrap_or("10950")
+        .unwrap()
         .parse::<u32>()
         .expect("invalid format for duration: expected positive integer");
-    let common_name = init_cmd.value_of("name").unwrap_or("root-ca");
+    let common_name = init_cmd.value_of("name").unwrap();
     let container = ca::CertContainer::generate(common_name, duration, pwd)?;
     let mut keystore_path = dir.clone();
     create_ca_directories(dir)?;
