@@ -173,8 +173,34 @@ impl CertContainer {
         Ok(())
     }
 
-    pub fn sign(&self, req: x509::X509Req) -> Result<x509::X509> {
-        panic!("unimplemented");
+    pub fn sign(&self, req: x509::X509Req, duration: u32) -> Result<x509::X509> {
+        let key = req.public_key()?;
+        let extensions = req.extensions()?;
+        let name = req.subject_name();
+
+        let mut cert_builder = x509::X509Builder::new()?;
+
+        cert_builder.set_subject_name(name)?;
+        cert_builder.set_issuer_name(self.cert.subject_name())?;
+        cert_builder.set_pubkey(&key)?;
+
+        let not_before = Asn1Time::days_from_now(0)?;
+        cert_builder.set_not_before(&not_before)?;
+        let not_after = Asn1Time::days_from_now(duration)?;
+        cert_builder.set_not_after(&not_after)?;
+        let serial_number = {
+            let mut serial = BigNum::new()?;
+            serial.rand(159, MsbOption::MAYBE_ZERO, false)?;
+            serial.to_asn1_integer()?
+        };
+        cert_builder.set_serial_number(&serial_number)?;
+
+        for extension in extensions {
+            cert_builder.append_extension(extension)?;
+        }
+        cert_builder.sign(&self.key, openssl::hash::MessageDigest::sha256())?;
+        let result = cert_builder.build();
+        Ok(result)
     }
 
     pub fn issue<T>(&self, duration: u32, sans: &[&str], pwd: T) -> Result<Self>

@@ -10,6 +10,7 @@ use std::io::prelude::*;
 use std::path::PathBuf;
 
 const VERSION: &'static str = env!("CARGO_PKG_VERSION");
+const DEFAULT_PWD: &'static str = "changeit";
 fn main() {
     let matches = App::new("ca")
         .version(VERSION)
@@ -153,6 +154,38 @@ fn main() {
                 )
                 .arg(Arg::with_name("NAME").takes_value(true).required(true)),
         )
+        .subcommand(
+            SubCommand::with_name("sign")
+                .about("sign a certificate request")
+                .arg(
+                    Arg::with_name("csr")
+                        .takes_value(true)
+                        .value_name("CSR")
+                        .help("the x509 certificate signing request")
+                        .required(true),
+                )
+                .arg(
+                    Arg::with_name("intermediate")
+                        .short("i")
+                        .long("intermediate")
+                        .takes_value(true),
+                )
+
+                .arg(
+                    Arg::with_name("duration")
+                        .short("d")
+                        .long("duration")
+                        .default_value("10950")
+                        .takes_value(true),
+                )
+                .arg(
+                    Arg::with_name("ca-pwd")
+                        .help("the password for the signing CA (default: changeit)")
+                        .long("ca-pwd")
+                        .default_value(DEFAULT_PWD)
+                        .takes_value(true),
+                ),
+        )
         .get_matches();
 
     let dir = if matches.is_present("directory") {
@@ -188,6 +221,13 @@ fn main() {
             PathBuf::from(export_cmd.value_of("out-dir").unwrap_or(".")),
             export_cmd.value_of("intermediate"),
         ),
+        ("sign", Some(sign_cmd)) => sign(
+            dir,
+            sign_cmd.value_of("ca-pwd").unwrap(),
+            sign_cmd.value_of("csr").unwrap(),
+            sign_cmd.value_of("duration").unwrap(),
+            sign_cmd.value_of("intermediate"),
+        ),
         _ => panic!("can not happen. This is a bug."),
     };
 
@@ -195,6 +235,23 @@ fn main() {
         println!("an error occred: {}", result.err().unwrap());
         std::process::exit(1);
     }
+}
+
+fn sign(
+    dir: PathBuf,
+    pwd: &str,
+    csr_path: &str,
+    raw_duration: &str,
+    possible_intermediate: Option<&str>,
+) -> ca::Result<()> {
+    let mut csr_file = File::open(csr_path)?;
+    let mut csr_pem = Vec::new();
+    csr_file.read_to_end(&mut csr_pem)?;
+    let req = openssl::x509::X509Req::from_pem(&csr_pem[..])?;
+    let (ca,_path) = load_ca(dir, pwd, possible_intermediate)?;
+    let duration = raw_duration.parse::<u32>().expect("");
+    ca.sign(req, duration)?;
+    Ok(())
 }
 
 fn import(

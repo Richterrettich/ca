@@ -5,5 +5,5 @@ authors = ["René Richter <richterrettich@gmail.com>"]
 
 [dependencies]
 clap = "2.31.2"
-openssl = "0.10.6"
+openssl = "0.10.7"
 tar = "0.4"
